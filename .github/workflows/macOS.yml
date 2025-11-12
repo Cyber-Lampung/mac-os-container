@@ -5,7 +5,7 @@ on:
 
 jobs:
   remote:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Setup desktop environment
         run: |
