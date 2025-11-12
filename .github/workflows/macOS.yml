@@ -1,0 +1,49 @@
+name: macOS Remote Desktop via ngrok
+
+on:
+  workflow_dispatch:  # supaya bisa kamu jalankan manual dari tab "Actions"
+
+jobs:
+  macos-remote:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install ngrok
+        run: brew install ngrok/ngrok/ngrok
+
+      - name: Configure ngrok
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          echo "=== Setting up ngrok auth token ==="
+          ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
+
+      - name: Enable Screen Sharing (VNC)
+        run: |
+          echo "=== Enabling remote desktop (VNC) ==="
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on \
+            -users runner \
+            -privs -all \
+            -restart -agent
+          echo "VNC access enabled for user 'runner' (no password)."
+
+      - name: Start ngrok tunnel (VNC port 5900)
+        run: |
+          echo "=== Starting ngrok tunnel for VNC ==="
+          nohup ngrok tcp 5900 --log=stdout > ngrok.log 2>&1 &
+          sleep 5
+          echo "=== Ngrok Logs (tail) ==="
+          tail -n 20 ngrok.log || true
+          echo "=== Ngrok Public URL ==="
+          curl -s http://127.0.0.1:4040/api/tunnels | grep -Eo '"public_url":"tcp:[^"]+' | sed 's/"public_url":"//'
+
+      - name: Keep session alive (so you can connect)
+        run: |
+          echo "=== Keeping macOS alive for 1 hour ==="
+          for i in {1..3600}; do
+            echo "Running... $i sec"
+            sleep 1
+          done
